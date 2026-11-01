@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   singerRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center' },
   singerMain: { flex: 1, minHeight: 60, paddingLeft: 0, paddingRight: 6, flexDirection: 'row', alignItems: 'center' },
   rowActions: { flexDirection: 'row', alignItems: 'center' },
-  rowAction: { width: 40, height: 54, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  rowAction: { width: 40, height: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
   actionHint: { color: colors.forest, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
   deleteHint: { color: colors.rose, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
   rowPressed: { opacity: 0.72 },

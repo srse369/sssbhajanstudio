@@ -1,12 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
+import * as Linking from 'expo-linking';
 import { router, useFocusEffect } from 'expo-router';
-import { ArrowRight, ListMusic, Play, Trash2 } from 'lucide-react-native';
+import { ArrowRight, ListMusic, Play, Share2, Trash2 } from 'lucide-react-native';
 import {
   Alert,
   ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -17,6 +19,12 @@ import { useLiveSession, type LiveSessionItem } from '../../contexts/LiveSession
 import { colors } from '../../lib/theme';
 import { formatCount } from '../../lib/count';
 import { deletePresentationSession, fetchPresentationSessions, type PresentationSession } from '../../lib/presentation';
+
+function shareSession(session: PresentationSession) {
+  const link = Linking.createURL(`/presentation/${encodeURIComponent(session.id)}`, { scheme: 'sssbhajanstudio' });
+  const count = `${session.items.length} ${session.items.length === 1 ? 'song' : 'songs'}`;
+  return Share.share({ message: [`${session.name} (${count})`, `Open in SSS Bhajan Studio: ${link}`].join('\n') });
+}
 
 export default function PresentationScreen() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -160,7 +168,7 @@ export default function PresentationScreen() {
                 </Text>
               </View>
               <View style={styles.presentButton}>
-                <Play color={colors.white} fill={colors.white} size={14} />
+                <Play color={colors.forest} fill={colors.forest} size={14} />
                 <Text style={styles.presentLabel}>Present</Text>
               </View>
             </Pressable>
@@ -174,6 +182,15 @@ export default function PresentationScreen() {
             >
               {isLoadingSession ? <ActivityIndicator color={colors.forest} size="small" /> : <ListMusic color={colors.forest} size={16} />}
               <Text style={styles.actionLabel}>{isLoadingSession ? 'Loading' : 'Live'}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Share ${item.name}`}
+              onPress={() => void shareSession(item)}
+              style={styles.actionButton}
+            >
+              <Share2 color={colors.forest} size={16} />
+              <Text style={styles.actionLabel}>Share</Text>
             </Pressable>
             {canDeleteSession(item) ? (
               <Pressable
@@ -230,12 +247,12 @@ const styles = StyleSheet.create({
   sessionCopy: { flex: 1, marginRight: 8 },
   sessionName: { color: colors.ink, fontSize: 13, fontWeight: '600', marginBottom: 2 },
   sessionMeta: { color: colors.muted, fontSize: 10 },
-  presentButton: { width: 46, height: 44, borderRadius: 6, backgroundColor: colors.forest, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  presentLabel: { color: colors.white, fontSize: 8, lineHeight: 10, fontWeight: '700' },
-  actionButton: { width: 44, minHeight: 44, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, marginLeft: 5, borderRadius: 6, backgroundColor: colors.sage },
+  presentButton: { width: 40, height: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  presentLabel: { color: colors.forest, fontSize: 8, lineHeight: 10, fontWeight: '700' },
+  actionButton: { width: 40, height: 52, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 },
   actionLabel: { color: colors.forest, fontSize: 8, lineHeight: 10, fontWeight: '700' },
   disabledAction: { opacity: 0.45 },
-  deleteButton: { width: 40, height: 50, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, marginLeft: 2 },
+  deleteButton: { width: 40, height: 52, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 },
   deleteLabel: { color: colors.rose, fontSize: 8, lineHeight: 10, fontWeight: '600' },
   separator: { height: 1, backgroundColor: colors.line },
   emptyState: { alignItems: 'center', paddingHorizontal: 28, paddingVertical: 38 },

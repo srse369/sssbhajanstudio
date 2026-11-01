@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   singerMeta: { color: '#C3D2C8', fontSize: 12, marginTop: 6 },
   songRow: { minHeight: 78, marginHorizontal: 16, paddingRight: 4, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: 8, overflow: 'hidden' },
   songMain: { flex: 1, minHeight: 76, paddingLeft: 12, paddingRight: 8, flexDirection: 'row', alignItems: 'center' },
-  liveButton: { width: 48, height: 72, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  liveButton: { width: 40, height: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
   liveButtonSelected: { backgroundColor: colors.forest },
   actionHint: { color: colors.forest, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
   selectedActionHint: { color: colors.white },

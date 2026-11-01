@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
-import { ArrowRight, Check, Heart, Pencil, Search, Trash2, WifiOff } from 'lucide-react-native';
+import { ArrowRight, Check, Heart, Pencil, Search, Share2, Trash2, WifiOff } from 'lucide-react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useSongs } from '../contexts/SongsContext';
 import { useLiveSession } from '../contexts/LiveSessionContext';
@@ -20,6 +20,7 @@ import { AlphabetIndex, alphabetIndexStyles, useAlphabetJump } from './AlphabetI
 import { AddFab } from './AddFab';
 import { formatCount } from '../lib/count';
 import { formatReferencePitch } from '../lib/pitch';
+import { shareSong } from '../lib/shareSong';
 import { colors } from '../lib/theme';
 import { keepProgressVisible } from '../lib/progress';
 import { createSong, deleteSong, fetchSong, updateSong, type Song, type SongInput } from '../lib/songs';
@@ -56,12 +57,10 @@ const ROW_STRIDE = ROW_HEIGHT + ROW_SEPARATOR;
 interface SongRowProps {
   item: Song;
   index: number;
-  isSaved: boolean;
   isInLiveSession: boolean;
   canManageSongs: boolean;
   canDeleteSong: boolean;
   isDeleting: boolean;
-  onToggleSavedSong: (songId: string) => Promise<void>;
   addSong: (
     song: Pick<Song, 'id' | 'name' | 'language' | 'deity'>,
     details?: { singerId?: string; singerName?: string; pitch?: string },
@@ -75,35 +74,21 @@ interface SongRowProps {
 const SongRow = memo(function SongRow({
   item,
   index,
-  isSaved,
   isInLiveSession,
   canManageSongs,
   canDeleteSong,
   isDeleting,
-  onToggleSavedSong,
   addSong,
   removeSong,
   isLiveLoading,
   onEditSong,
   onDeleteSong,
 }: SongRowProps) {
-  const [isFavoritePending, setIsFavoritePending] = useState(false);
   const [isLivePending, setIsLivePending] = useState(false);
   const subtitle = [item.deity, item.language, item.raga, item.tempo]
     .filter(Boolean)
     .map((value) => formatLabel(value as string))
     .join(' · ');
-
-  async function toggleFavorite() {
-    setIsFavoritePending(true);
-    try {
-      await onToggleSavedSong(item.id);
-    } catch (cause) {
-      Alert.alert('Unable to update favorite', cause instanceof Error ? cause.message : 'Please try again.');
-    } finally {
-      setIsFavoritePending(false);
-    }
-  }
 
   async function toggleLive() {
     setIsLivePending(true);
@@ -148,17 +133,13 @@ const SongRow = memo(function SongRow({
       </Pressable>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={isSaved ? `Remove ${item.name} from favorites` : `Favorite ${item.name}`}
-        accessibilityState={{ disabled: isFavoritePending }}
-        disabled={isFavoritePending}
-        onPress={() => void toggleFavorite()}
+        accessibilityLabel={`Share ${item.name}`}
+        onPress={() => void shareSong(item)}
         hitSlop={10}
         style={styles.saveButton}
       >
-        {isFavoritePending
-          ? <ActivityIndicator color={colors.rose} size="small" />
-          : <Heart color={isSaved ? colors.rose : colors.muted} fill={isSaved ? colors.rose : 'transparent'} size={19} strokeWidth={1.8} />}
-        <Text style={styles.actionHint}>Favorite</Text>
+        <Share2 color={colors.forest} size={18} strokeWidth={1.8} />
+        <Text style={styles.actionHint}>Share</Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -208,7 +189,7 @@ const SongRow = memo(function SongRow({
 
 export function SongLibrary({ savedOnly = false }: SongLibraryProps) {
   const { user } = useAuth();
-  const { songs, savedSongIds, isLoading, error, refreshSongs, toggleSavedSong } = useSongs();
+  const { songs, savedSongIds, isLoading, error, refreshSongs } = useSongs();
   const { items: liveItems, isLoading: isLiveLoading, addSong, removeSong } = useLiveSession();
   const favoriteSongIds = useMemo(() => new Set(savedSongIds), [savedSongIds]);
   const liveSongIds = useMemo(() => new Set(liveItems.map((item) => item.songId)), [liveItems]);
@@ -291,19 +272,17 @@ export function SongLibrary({ savedOnly = false }: SongLibraryProps) {
     <SongRow
       item={item}
       index={index}
-      isSaved={favoriteSongIds.has(item.id)}
       isInLiveSession={liveSongIds.has(item.id)}
       canManageSongs={canManageSongs}
       canDeleteSong={user?.role === 'admin' || (user?.role === 'editor' && item.createdBy === user.email)}
       isDeleting={deletingSongId === item.id}
-      onToggleSavedSong={toggleSavedSong}
       addSong={addSong}
       removeSong={removeSong}
       isLiveLoading={isLiveLoading}
       onEditSong={openSongEditor}
       onDeleteSong={confirmDeleteSong}
     />
-  ), [favoriteSongIds, liveSongIds, isLiveLoading, canManageSongs, user, deletingSongId, toggleSavedSong, addSong, removeSong, openSongEditor, confirmDeleteSong]);
+  ), [liveSongIds, isLiveLoading, canManageSongs, user, deletingSongId, addSong, removeSong, openSongEditor, confirmDeleteSong]);
 
   function renderEmptyState() {
     if (isLoading) {
@@ -455,10 +434,10 @@ const styles = StyleSheet.create({
   gentsLabel: { color: '#2563EB' },
   ladiesLabel: { color: '#DB2777' },
   songSubtitle: { color: colors.muted, fontSize: 10, lineHeight: 13 },
-  saveButton: { width: 42, height: 60, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  liveButton: { width: 42, height: 60, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  saveButton: { width: 40, height: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  liveButton: { width: 40, height: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
   liveButtonSelected: { backgroundColor: colors.forest },
-  manageButton: { width: 38, height: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  manageButton: { width: 40, height: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
   actionHint: { color: colors.muted, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
   selectedActionHint: { color: colors.white },
   deleteHint: { color: colors.rose, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },

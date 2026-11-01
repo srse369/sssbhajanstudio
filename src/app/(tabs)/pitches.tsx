@@ -336,10 +336,10 @@ export default function PitchesScreen() {
           <Text style={styles.heading}>Pitches</Text>
           <Text style={styles.intro}>
             {pitchScope === 'mine'
-              ? `${formatCount(visiblePitches.length, scopedPitches.length)} assignments linked to your profile.`
+              ? `${formatCount(visiblePitches.length, scopedPitches.length)} assignments${user?.name ? ` for ${user.name}` : ''}.`
               : isAdmin
                 ? `${formatCount(visiblePitches.length, scopedPitches.length)} assignments across all centers.`
-                : `${formatCount(visiblePitches.length, scopedPitches.length)} assignments in your ${user?.role === 'editor' ? 'managed' : 'associated'} centers.`}
+                : `${formatCount(visiblePitches.length, scopedPitches.length)} assignments across authorized centers.`}
           </Text>
         </View>
         <View style={styles.searchWrap}>
@@ -442,10 +442,10 @@ const styles = StyleSheet.create({
   listContent: { flexGrow: 1, backgroundColor: colors.paper, paddingHorizontal: 16, paddingBottom: 16 },
   pitchRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center' },
   pitchMain: { flex: 1, minHeight: 62, paddingLeft: 0, paddingRight: 6, flexDirection: 'row', alignItems: 'center' },
-  liveButton: { width: 42, height: 54, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  liveButton: { width: 40, height: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
   liveButtonSelected: { backgroundColor: colors.forest },
   pitchManagementActions: { flexDirection: 'row', alignItems: 'center' },
-  managementButton: { width: 38, height: 54, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  managementButton: { width: 40, height: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
   actionHint: { color: colors.muted, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
   selectedActionHint: { color: colors.white },
   deleteHint: { color: colors.rose, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },

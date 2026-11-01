@@ -1,24 +1,25 @@
 import { useEffect, useState } from 'react';
-import * as Linking from 'expo-linking';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, ArrowRight, Check, Heart, Headphones, Pause, Play, Share2 } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Check, Heart, Headphones, Pause, Pencil, Play, Share2 } from 'lucide-react-native';
 import {
   ActivityIndicator,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLiveSession } from '../../contexts/LiveSessionContext';
-import { useFavoriteSongs } from '../../contexts/SongsContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useFavoriteSongs, useSongs } from '../../contexts/SongsContext';
+import { SongEditorModal } from '../../components/SongEditorModal';
 import { keepProgressVisible } from '../../lib/progress';
-import { fetchSong, type Song } from '../../lib/songs';
+import { fetchSong, updateSong, type Song, type SongInput } from '../../lib/songs';
 import { formatReferencePitch } from '../../lib/pitch';
+import { shareSong } from '../../lib/shareSong';
 import { colors } from '../../lib/theme';
 
 function formatTime(seconds: number) {
@@ -28,19 +29,13 @@ function formatTime(seconds: number) {
   return `${minutes}:${remainingSeconds}`;
 }
 
-function shareSong(song: Song) {
-  const pitches = [
-    song.refGents ? `Gents: ${formatReferencePitch(song.refGents)}` : null,
-    song.refLadies ? `Ladies: ${formatReferencePitch(song.refLadies)}` : null,
-  ].filter(Boolean).join(' • ');
-  const link = Linking.createURL(`/song/${encodeURIComponent(song.id)}`, { scheme: 'sssbhajanstudio' });
-  const message = [song.name, pitches, `Open in SSS Bhajan Studio: ${link}`, song.externalSourceUrl].filter(Boolean).join('\n');
-  return Share.share({ message });
-}
-
 export default function SongDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { savedSongIds, toggleSavedSong } = useFavoriteSongs();
+  const { user } = useAuth();
+  const { refreshSongs } = useSongs();
+  const canEdit = user?.role === 'editor' || user?.role === 'admin';
+  const [isEditing, setIsEditing] = useState(false);
   const [song, setSong] = useState<Song | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [isFavoritePending, setIsFavoritePending] = useState(false);
@@ -62,6 +57,14 @@ export default function SongDetailScreen() {
     } finally {
       setIsFavoritePending(false);
     }
+  }
+
+  async function saveSong(input: SongInput) {
+    if (!song) return;
+    await updateSong(song.id, input);
+    setIsEditing(false);
+    setSong(await fetchSong(song.id));
+    void refreshSongs();
   }
 
   async function toggleLive() {
@@ -143,6 +146,11 @@ export default function SongDetailScreen() {
           <ArrowLeft color={colors.ink} size={21} strokeWidth={1.8} />
         </Pressable>
         <View style={styles.topActions}>
+          {canEdit ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Edit song" onPress={() => setIsEditing(true)} style={styles.iconButton}>
+              <Pencil color={colors.ink} size={18} strokeWidth={1.8} />
+            </Pressable>
+          ) : null}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Share song"
@@ -261,6 +269,9 @@ export default function SongDetailScreen() {
           </View>
         ) : null}
       </ScrollView>
+      {canEdit && isEditing ? (
+        <SongEditorModal visible song={song} onClose={() => setIsEditing(false)} onSubmit={saveSong} />
+      ) : null}
     </SafeAreaView>
   );
 }

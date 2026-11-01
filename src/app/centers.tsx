@@ -175,9 +175,11 @@ export default function CentersScreen() {
             </View>
             <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${item.name}`} onPress={() => openForm(item)} style={styles.rowButton}>
               <Pencil color={colors.forest} size={16} />
+              <Text style={styles.actionHint}>Edit</Text>
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${item.name}`} accessibilityState={{ disabled: deletingCenterId === item.id }} disabled={deletingCenterId === item.id} onPress={() => confirmDelete(item)} style={styles.rowButton}>
               {deletingCenterId === item.id ? <ActivityIndicator color={colors.rose} size="small" /> : <Trash2 color={colors.rose} size={17} />}
+              <Text style={styles.deleteHint}>Delete</Text>
             </Pressable>
           </View>
         )}
@@ -244,7 +246,9 @@ const styles = StyleSheet.create({
   centerCopy: { flex: 1 },
   centerName: { color: colors.ink, fontSize: 14, fontWeight: '600' },
   centerMeta: { color: colors.muted, fontSize: 10, marginTop: 4 },
-  rowButton: { width: 32, height: 40, alignItems: 'center', justifyContent: 'center' },
+  rowButton: { width: 40, height: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  actionHint: { color: colors.forest, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
+  deleteHint: { color: colors.rose, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
   empty: { color: colors.muted, fontSize: 13, textAlign: 'center', padding: 28 },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16, 29, 23, 0.48)' },
   keyboardAvoiding: { flex: 1, justifyContent: 'flex-end' },

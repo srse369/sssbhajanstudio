@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Play, Save, Trash2, X } from 'lucide-react-native';
+import { ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Play, Save, Share2, Trash2, X } from 'lucide-react-native';
 import {
   Alert,
   ActivityIndicator,
@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Pressable,
+  Share,
   Platform,
   StyleSheet,
   Text,
@@ -19,6 +20,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { liveSessionItemKey, useLiveSession } from '../../contexts/LiveSessionContext';
 import { savePresentationSession } from '../../lib/presentation';
 import { colors } from '../../lib/theme';
+import { buildLiveShareMessage } from '../../lib/liveShare';
 import { formatCount } from '../../lib/count';
 import { singerNameColor } from '../../lib/singerColors';
 
@@ -81,6 +83,17 @@ export default function LiveScreen() {
 
   return (
     <View style={styles.screen}>
+      {items.length ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Share Live session"
+          onPress={() => void Share.share({ message: buildLiveShareMessage(items) })}
+          style={({ pressed }) => [styles.clearFab, styles.shareFab, pressed && styles.pressed]}
+        >
+          <Share2 color={colors.white} size={14} />
+          <Text style={styles.clearFabLabel}>Share</Text>
+        </Pressable>
+      ) : null}
       {items.length ? (
         <Pressable
           accessibilityRole="button"
@@ -184,7 +197,10 @@ export default function LiveScreen() {
                 accessibilityLabel={`Remove ${item.songName}${item.singerName ? ` for ${item.singerName}` : ''} from Live`}
                 accessibilityState={{ disabled: pendingItemAction !== null }}
                 disabled={pendingItemAction !== null}
-                onPress={() => void runItemAction(removeKey, () => removeItem(itemKey))}
+                onPress={() => Alert.alert('Remove song?', `Remove ${item.songName} from your Live queue?`, [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Remove', style: 'destructive', onPress: () => void runItemAction(removeKey, () => removeItem(itemKey)) },
+                ])}
                 style={styles.removeButton}
               >
                 {pendingItemAction === removeKey ? <ActivityIndicator color={colors.rose} size="small" /> : <Trash2 color={colors.rose} size={17} />}
@@ -295,6 +311,7 @@ const styles = StyleSheet.create({
   intro: { color: '#C3D2C8', fontSize: 12, lineHeight: 16, marginTop: 3, textAlign: 'center' },
   clearFab: { position: 'absolute', top: 4, right: 18, zIndex: 5, width: 38, height: 38, borderRadius: 19, backgroundColor: '#426756', alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.72 },
+  shareFab: { right: 64 },
   clearFabLabel: { color: colors.white, fontSize: 8, lineHeight: 9, fontWeight: '700' },
   listContent: { paddingHorizontal: 14, paddingBottom: 16 },
   emptyListContent: { flexGrow: 1, justifyContent: 'center' },
