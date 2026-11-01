@@ -168,7 +168,7 @@ export default function PresentationScreen() {
                 </Text>
               </View>
               <View style={styles.presentButton}>
-                <Play color={colors.forest} fill={colors.forest} size={14} />
+                <Play color={colors.forest} fill={colors.forest} size={16} strokeWidth={1.8} />
                 <Text style={styles.presentLabel}>Present</Text>
               </View>
             </Pressable>
@@ -180,7 +180,7 @@ export default function PresentationScreen() {
               onPress={() => loadSession(item)}
               style={[styles.actionButton, (isLiveLoading || loadingSessionId !== null) && styles.disabledAction]}
             >
-              {isLoadingSession ? <ActivityIndicator color={colors.forest} size="small" /> : <ListMusic color={colors.forest} size={16} />}
+              {isLoadingSession ? <ActivityIndicator color={colors.forest} size="small" /> : <ListMusic color={colors.forest} size={18} strokeWidth={1.8} />}
               <Text style={styles.actionLabel}>{isLoadingSession ? 'Loading' : 'Live'}</Text>
             </Pressable>
             <Pressable
@@ -189,7 +189,7 @@ export default function PresentationScreen() {
               onPress={() => void shareSession(item)}
               style={styles.actionButton}
             >
-              <Share2 color={colors.forest} size={16} />
+              <Share2 color={colors.forest} size={18} strokeWidth={1.8} />
               <Text style={styles.actionLabel}>Share</Text>
             </Pressable>
             {canDeleteSession(item) ? (
@@ -203,7 +203,7 @@ export default function PresentationScreen() {
               >
                 {deletingSessionId === item.id
                   ? <ActivityIndicator color={colors.rose} size="small" />
-                  : <Trash2 color={colors.rose} size={17} />}
+                  : <Trash2 color={colors.rose} size={18} strokeWidth={1.8} />}
                 <Text style={styles.deleteLabel}>Delete</Text>
               </Pressable>
             ) : null}
@@ -248,9 +248,9 @@ const styles = StyleSheet.create({
   sessionName: { color: colors.ink, fontSize: 13, fontWeight: '600', marginBottom: 2 },
   sessionMeta: { color: colors.muted, fontSize: 10 },
   presentButton: { width: 40, height: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  presentLabel: { color: colors.forest, fontSize: 8, lineHeight: 10, fontWeight: '700' },
+  presentLabel: { color: colors.forest, fontSize: 8, lineHeight: 10, fontWeight: '600' },
   actionButton: { width: 40, height: 52, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 },
-  actionLabel: { color: colors.forest, fontSize: 8, lineHeight: 10, fontWeight: '700' },
+  actionLabel: { color: colors.forest, fontSize: 8, lineHeight: 10, fontWeight: '600' },
   disabledAction: { opacity: 0.45 },
   deleteButton: { width: 40, height: 52, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 },
   deleteLabel: { color: colors.rose, fontSize: 8, lineHeight: 10, fontWeight: '600' },
