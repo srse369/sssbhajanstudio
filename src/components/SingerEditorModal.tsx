@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Check, X } from 'lucide-react-native';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -74,6 +76,7 @@ export function SingerEditorModal({ singer, user, centers, onClose, onSubmit }: 
     <Modal animationType="slide" onRequestClose={onClose} presentationStyle="overFullScreen" transparent visible>
       <View style={styles.backdrop}>
         <Pressable accessibilityRole="button" accessibilityLabel="Close singer form" onPress={onClose} style={styles.scrim} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardAvoiding}>
         <View style={styles.sheet}>
           <View style={styles.header}>
             <View>
@@ -125,6 +128,7 @@ export function SingerEditorModal({ singer, user, centers, onClose, onSubmit }: 
             </Pressable>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -132,6 +136,7 @@ export function SingerEditorModal({ singer, user, centers, onClose, onSubmit }: 
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16, 29, 23, 0.48)' },
+  keyboardAvoiding: { flex: 1, justifyContent: 'flex-end' },
   scrim: { ...StyleSheet.absoluteFill },
   sheet: { maxHeight: '92%', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 26, backgroundColor: colors.paper, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
   header: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },

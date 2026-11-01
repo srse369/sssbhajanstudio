@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { ArrowRight, Clapperboard, ListMusic, Play, Trash2 } from 'lucide-react-native';
+import { ArrowRight, ListMusic, Play, Trash2 } from 'lucide-react-native';
 import {
   Alert,
   ActivityIndicator,
@@ -11,15 +11,23 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SearchBar } from '../../components/SearchBar';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLiveSession, type LiveSessionItem } from '../../contexts/LiveSessionContext';
 import { colors } from '../../lib/theme';
+import { formatCount } from '../../lib/count';
 import { deletePresentationSession, fetchPresentationSessions, type PresentationSession } from '../../lib/presentation';
 
 export default function PresentationScreen() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { items: liveItems, isLoading: isLiveLoading, replaceItems } = useLiveSession();
   const [sessions, setSessions] = useState<PresentationSession[]>([]);
+  const [query, setQuery] = useState('');
+  const visibleSessions = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return sessions;
+    return sessions.filter((session) => `${session.name} ${session.description || ''}`.toLowerCase().includes(needle));
+  }, [sessions, query]);
   const [loadedForAccount, setLoadedForAccount] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
@@ -127,16 +135,13 @@ export default function PresentationScreen() {
       <View>
         <View style={styles.header}>
           <Text style={styles.heading}>Presentations</Text>
-          <Text style={styles.intro}>Choose a session to display its songs and lyrics.</Text>
+          <Text style={styles.intro}>{formatCount(visibleSessions.length, sessions.length)} {sessions.length === 1 ? 'presentation' : 'presentations'} · choose one to show its songs and lyrics.</Text>
         </View>
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionTitle}>Sessions</Text>
-          <Text style={styles.sectionCount}>{sessions.length} AVAILABLE</Text>
-        </View>
+        <SearchBar label="Search presentations" value={query} onChangeText={setQuery} />
       </View>
       <FlatList
         style={styles.sessionList}
-        data={sessions}
+        data={visibleSessions}
         keyExtractor={(session) => session.id}
         renderItem={({ item }) => {
           const isLoadingSession = loadingSessionId === item.id;
@@ -148,7 +153,6 @@ export default function PresentationScreen() {
               onPress={() => router.push({ pathname: '/presentation/[id]', params: { id: item.id } })}
               style={({ pressed }) => [styles.sessionMain, pressed && styles.pressed]}
             >
-              <View style={styles.sessionIcon}><Clapperboard color={colors.forest} size={21} strokeWidth={1.7} /></View>
               <View style={styles.sessionCopy}>
                 <Text numberOfLines={1} style={styles.sessionName}>{item.name}</Text>
                 <Text numberOfLines={1} style={styles.sessionMeta}>
@@ -220,13 +224,9 @@ const styles = StyleSheet.create({
   header: { backgroundColor: colors.forest, paddingHorizontal: 20, paddingTop: 2, paddingBottom: 23 },
   heading: { color: '#E6C08B', fontSize: 25, lineHeight: 30, fontWeight: '700', textAlign: 'center', marginTop: -8 },
   intro: { color: '#C3D2C8', fontSize: 12, lineHeight: 16, marginTop: 3, textAlign: 'center' },
-  sectionHeading: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: colors.ink, fontSize: 15, fontFamily: 'Georgia' },
-  sectionCount: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
   sessionRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 2 },
   sessionMain: { flex: 1, minHeight: 62, flexDirection: 'row', alignItems: 'center' },
   pressed: { opacity: 0.72 },
-  sessionIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.sage, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
   sessionCopy: { flex: 1, marginRight: 8 },
   sessionName: { color: colors.ink, fontSize: 13, fontWeight: '600', marginBottom: 2 },
   sessionMeta: { color: colors.muted, fontSize: 10 },

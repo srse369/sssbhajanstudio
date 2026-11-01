@@ -51,3 +51,18 @@ export function formatReferencePitch(input?: string | null): string {
   const number = NOTE_TO_NUMBER[note];
   return `${number ? `${number}${suffix}` : normalized} (${display})`;
 }
+
+const BASE_PITCHES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+export const PITCH_OPTIONS = [
+  ...BASE_PITCHES.flatMap((value) => [value, `${value} major`, `${value} minor`]),
+  '1 Madhyam', '1.5 Madhyam', '2 Madhyam', '2.5 Madhyam', '3 Madhyam', '4 Madhyam',
+  '4.5 Madhyam', '5 Madhyam', '5.5 Madhyam', '6 Madhyam', '6.5 Madhyam', '7 Madhyam',
+];
+const PITCH_NUMBERS: Record<string, number> = { C: 1, 'C#': 1.5, D: 2, 'D#': 2.5, E: 3, F: 4, 'F#': 4.5, G: 5, 'G#': 5.5, A: 6, 'A#': 6.5, B: 7 };
+
+export function pitchOptionLabel(value: string) {
+  if (value.includes('Madhyam')) return value;
+  const suffix = value.endsWith(' major') ? 'M' : value.endsWith(' minor') ? 'm' : '';
+  const base = suffix ? value.replace(/ (major|minor)$/, '') : value;
+  return `${PITCH_NUMBERS[base]}${suffix} (${value.replace('#', '♯')})`;
+}

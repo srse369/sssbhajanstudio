@@ -1,13 +1,14 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Redirect, router } from 'expo-router';
-import { Alert, ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ArrowRight, AudioLines, Check, Pencil, Plus, Search, Trash2 } from 'lucide-react-native';
+import { Alert, ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ArrowRight, AudioLines, Check, Pencil, Search, Trash2 } from 'lucide-react-native';
 import { AlphabetIndex, alphabetIndexStyles, compareNames, useAlphabetJump } from '../../components/AlphabetIndex';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLiveSession } from '../../contexts/LiveSessionContext';
 import { useSongCatalog } from '../../contexts/SongsContext';
-import { colors, coverColors } from '../../lib/theme';
+import { colors } from '../../lib/theme';
 import { keepProgressVisible } from '../../lib/progress';
+import { formatReferencePitch } from '../../lib/pitch';
 import { singerNameColor } from '../../lib/singerColors';
 import {
   createSingerSongPitch,
@@ -18,6 +19,8 @@ import {
   type Singer,
   updateSingerSongPitch,
 } from '../../lib/singers';
+import { AddFab } from '../../components/AddFab';
+import { formatCount } from '../../lib/count';
 import { PitchEditorModal } from '../../components/PitchEditorModal';
 
 const EMPTY_CENTER_IDS: number[] = [];
@@ -26,6 +29,8 @@ interface PitchRowProps {
   item: SingerSongPitch;
   index: number;
   singerGender?: string;
+  refGents?: string | null;
+  refLadies?: string | null;
   isInLiveSession: boolean;
   isLiveLoading: boolean;
   showManagementActions: boolean;
@@ -36,10 +41,33 @@ interface PitchRowProps {
   onDelete: (item: SingerSongPitch) => void;
 }
 
+function SegmentedToggle<T extends string>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (value: T) => void }) {
+  return (
+    <View accessibilityRole="radiogroup" style={styles.segment}>
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <Pressable
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            key={option.value}
+            onPress={() => onChange(option.value)}
+            style={[styles.segmentOption, selected && styles.segmentOptionSelected]}
+          >
+            <Text style={[styles.filterLabel, selected && styles.filterLabelSelected]}>{option.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 const PitchRow = memo(function PitchRow({
   item,
   index,
   singerGender,
+  refGents,
+  refLadies,
   isInLiveSession,
   isLiveLoading,
   showManagementActions,
@@ -72,14 +100,20 @@ const PitchRow = memo(function PitchRow({
         onPress={() => router.push({ pathname: '/song/[id]', params: { id: item.songId } })}
         style={({ pressed }) => [styles.pitchMain, pressed && styles.rowPressed]}
       >
-        <View style={[styles.songMark, { backgroundColor: coverColors[index % coverColors.length] }]}>
-          <AudioLines color={colors.forestDeep} size={19} strokeWidth={1.7} />
-        </View>
         <View style={styles.pitchCopy}>
           <Text numberOfLines={1} style={styles.songName}>{item.songName || 'Untitled bhajan'}</Text>
-            <Text numberOfLines={1} style={[styles.singerName, { color: singerNameColor(singerGender) }]}>{item.singerName || 'Singer'}</Text>
+          <Text numberOfLines={1} style={styles.singerName}>
+            <Text style={styles.gentsLabel}>Gents: </Text>
+            {formatReferencePitch(refGents) || 'missing'}
+            {'  •  '}
+            <Text style={styles.ladiesLabel}>Ladies: </Text>
+            {formatReferencePitch(refLadies) || 'missing'}
+          </Text>
+          <Text numberOfLines={1} style={styles.singerName}>
+            <Text style={{ color: singerNameColor(singerGender) }}>{item.singerName || 'Singer'}: </Text>
+            {item.pitch}
+          </Text>
         </View>
-        <View style={styles.pitchBadge}><Text style={styles.pitchLabel}>{item.pitch}</Text></View>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -238,6 +272,7 @@ export default function PitchesScreen() {
       : singers.filter((singer) => singer.centerIds.some((centerId) => accessibleCenterIds.includes(centerId))).map((singer) => singer.id),
   ), [isAdmin, singers, accessibleCenterIds]);
     const singersById = useMemo(() => new Map(singers.map((singer) => [singer.id, singer])), [singers]);
+  const songsById = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs]);
   const scopedPitches = useMemo(() => pitchScope === 'mine'
     ? pitches.filter((item) => item.singerId === user?.id)
     : isAdmin
@@ -267,6 +302,8 @@ export default function PitchesScreen() {
       item={item}
       index={index}
       singerGender={singersById.get(item.singerId)?.gender}
+      refGents={songsById.get(item.songId)?.refGents}
+      refLadies={songsById.get(item.songId)?.refLadies}
       isInLiveSession={livePitchKeys.has(`${item.songId}|${item.singerId}`)}
       isLiveLoading={isLiveLoading}
       showManagementActions={showManagementActions}
@@ -276,7 +313,7 @@ export default function PitchesScreen() {
       onEdit={openEditPitch}
       onDelete={confirmDeletePitch}
     />
-  ), [livePitchKeys, isLiveLoading, showManagementActions, mutatingPitchId, addSong, removeSong, openEditPitch, confirmDeletePitch, singersById]);
+  ), [livePitchKeys, isLiveLoading, showManagementActions, mutatingPitchId, addSong, removeSong, openEditPitch, confirmDeletePitch, singersById, songsById]);
 
   if (isAuthLoading || (user && loadedForUser !== user.id)) {
     return (
@@ -293,15 +330,16 @@ export default function PitchesScreen() {
 
   return (
     <View style={styles.screen}>
+      {pitchScope === 'mine' || canManageAllPitches ? <AddFab label="Add pitch" onPress={openAddPitch} /> : null}
       <View>
         <View style={styles.header}>
           <Text style={styles.heading}>Pitches</Text>
           <Text style={styles.intro}>
             {pitchScope === 'mine'
-              ? `${scopedPitches.length} assignments linked to your profile.`
+              ? `${formatCount(visiblePitches.length, scopedPitches.length)} assignments linked to your profile.`
               : isAdmin
-                ? `${scopedPitches.length} assignments across all centers.`
-                : `${scopedPitches.length} assignments in your ${user?.role === 'editor' ? 'managed' : 'associated'} centers.`}
+                ? `${formatCount(visiblePitches.length, scopedPitches.length)} assignments across all centers.`
+                : `${formatCount(visiblePitches.length, scopedPitches.length)} assignments in your ${user?.role === 'editor' ? 'managed' : 'associated'} centers.`}
           </Text>
         </View>
         <View style={styles.searchWrap}>
@@ -316,51 +354,20 @@ export default function PitchesScreen() {
             value={query}
           />
         </View>
-          <View accessibilityRole="radiogroup" style={styles.scopeControl}>
-            <Pressable
-              accessibilityRole="radio"
-              accessibilityState={{ selected: pitchScope === 'mine' }}
-              onPress={() => setPitchScope('mine')}
-              style={[styles.scopeOption, pitchScope === 'mine' && styles.scopeOptionSelected]}
-            >
-              <Text style={[styles.scopeLabel, pitchScope === 'mine' && styles.scopeLabelSelected]}>My pitches</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="radio"
-              accessibilityState={{ selected: pitchScope === 'all' }}
-              onPress={() => setPitchScope('all')}
-              style={[styles.scopeOption, pitchScope === 'all' && styles.scopeOptionSelected]}
-            >
-              <Text style={[styles.scopeLabel, pitchScope === 'all' && styles.scopeLabelSelected]}>All pitches</Text>
-            </Pressable>
-          </View>
-        <View accessibilityRole="radiogroup" style={styles.scopeControl}>
-          {(['song', 'singer'] as const).map((option) => (
-            <Pressable
-              key={option}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: sortBy === option }}
-              onPress={() => setSortBy(option)}
-              style={[styles.scopeOption, sortBy === option && styles.scopeOptionSelected]}
-            >
-              <Text style={[styles.scopeLabel, sortBy === option && styles.scopeLabelSelected]}>
-                {option === 'song' ? 'Sort: Song, Singer' : 'Sort: Singer, Song'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionTitle}>Assignments</Text>
-          <View style={styles.sectionActions}>
-            <Text style={styles.sectionCount}>{visiblePitches.length} PITCHES</Text>
-            {pitchScope === 'mine' || canManageAllPitches ? (
-              <Pressable accessibilityRole="button" accessibilityLabel="Add pitch" onPress={openAddPitch} style={styles.addButton}>
-                <Plus color={colors.white} size={16} />
-                <Text style={styles.addLabel}>Add pitch</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          <Text style={styles.groupLabel}>Pitches</Text>
+          <SegmentedToggle
+            options={[{ value: 'mine', label: 'My' }, { value: 'all', label: 'All' }]}
+            value={pitchScope}
+            onChange={setPitchScope}
+          />
+          <Text style={[styles.groupLabel, styles.groupLabelSpaced]}>Sort</Text>
+          <SegmentedToggle
+            options={[{ value: 'song', label: 'Song, Singer' }, { value: 'singer', label: 'Singer, Song' }]}
+            value={sortBy}
+            onChange={setSortBy}
+          />
+        </ScrollView>
       </View>
       <View style={alphabetIndexStyles.listArea}>
       <FlatList
@@ -422,17 +429,16 @@ const styles = StyleSheet.create({
   intro: { color: '#C3D2C8', fontSize: 12, lineHeight: 16, marginTop: 3, textAlign: 'center' },
   searchWrap: { minHeight: 44, backgroundColor: colors.surface, borderColor: colors.line, borderWidth: 1, borderRadius: 7, marginHorizontal: 16, marginTop: -10, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center' },
   searchInput: { flex: 1, minHeight: 42, color: colors.ink, fontSize: 13, marginLeft: 8, paddingVertical: 0 },
-  scopeControl: { flexDirection: 'row', backgroundColor: colors.sage, borderRadius: 999, padding: 3, marginHorizontal: 16, marginTop: 8 },
-  scopeOption: { flex: 1, minHeight: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
-  scopeOptionSelected: { backgroundColor: colors.surface, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  scopeLabel: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  scopeLabelSelected: { color: colors.forest, fontWeight: '700' },
-  sectionHeading: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: colors.ink, fontSize: 15, fontFamily: 'Georgia' },
-  sectionActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sectionCount: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
-  addButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, borderRadius: 7, backgroundColor: colors.forest },
-  addLabel: { color: colors.white, fontSize: 11, fontWeight: '700' },
+  filterRow: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, gap: 6 },
+  filterChip: { minHeight: 27, borderRadius: 14, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 10, justifyContent: 'center', backgroundColor: colors.surface },
+  filterChipSelected: { backgroundColor: colors.saffronLight, borderColor: colors.saffronLight },
+  segment: { flexDirection: 'row', backgroundColor: colors.sage, borderRadius: 16, padding: 2 },
+  segmentOption: { minHeight: 27, paddingHorizontal: 7, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  segmentOptionSelected: { backgroundColor: colors.saffronLight },
+  groupLabel: { color: colors.ink, fontSize: 12, fontWeight: '700' },
+  groupLabelSpaced: { marginLeft: 8 },
+  filterLabel: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+  filterLabelSelected: { color: colors.forestDeep },
   listContent: { flexGrow: 1, backgroundColor: colors.paper, paddingHorizontal: 16, paddingBottom: 16 },
   pitchRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center' },
   pitchMain: { flex: 1, minHeight: 62, paddingLeft: 0, paddingRight: 6, flexDirection: 'row', alignItems: 'center' },
@@ -445,12 +451,11 @@ const styles = StyleSheet.create({
   deleteHint: { color: colors.rose, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
   disabledAction: { opacity: 0.35 },
   rowPressed: { opacity: 0.72 },
-  songMark: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
   pitchCopy: { flex: 1, marginRight: 6 },
   songName: { color: colors.ink, fontSize: 12, fontWeight: '600', marginBottom: 2 },
-  singerName: { color: colors.muted, fontSize: 10 },
-  pitchBadge: { minWidth: 38, height: 27, borderRadius: 14, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sage, marginRight: 6 },
-  pitchLabel: { color: colors.forest, fontSize: 11, fontWeight: '700' },
+  singerName: { color: colors.ink, fontSize: 10, lineHeight: 14 },
+  gentsLabel: { color: '#2563EB' },
+  ladiesLabel: { color: '#DB2777' },
   separator: { height: 1, backgroundColor: colors.line },
   emptyState: { alignItems: 'center', paddingHorizontal: 24, paddingVertical: 40 },
   emptyTitle: { color: colors.ink, fontSize: 14, textAlign: 'center', marginTop: 12 },

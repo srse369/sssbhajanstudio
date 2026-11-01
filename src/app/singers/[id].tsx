@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLiveSession } from '../../contexts/LiveSessionContext';
-import { colors, coverColors } from '../../lib/theme';
+import { colors } from '../../lib/theme';
 import { singerNameColor } from '../../lib/singerColors';
 import { keepProgressVisible } from '../../lib/progress';
+import { formatReferencePitch } from '../../lib/pitch';
+import { fetchSongs, type Song } from '../../lib/songs';
 import { fetchSingers, fetchSingerSongPitches, type Singer, type SingerSongPitch } from '../../lib/singers';
 
 export default function SingerDetailScreen() {
@@ -21,6 +23,7 @@ export default function SingerDetailScreen() {
   const { items: liveItems, isLoading: isLiveLoading, addSong, removeSong } = useLiveSession();
   const [singer, setSinger] = useState<Singer | null>(null);
   const [songs, setSongs] = useState<SingerSongPitch[]>([]);
+  const [songsById, setSongsById] = useState<Record<string, Song>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingLiveKey, setPendingLiveKey] = useState<string | null>(null);
@@ -41,6 +44,11 @@ export default function SingerDetailScreen() {
 
   useEffect(() => {
     let isActive = true;
+    void fetchSongs()
+      .then((all) => {
+        if (isActive) setSongsById(Object.fromEntries(all.map((song) => [song.id, song])));
+      })
+      .catch(() => undefined);
     void Promise.all([fetchSingers(), fetchSingerSongPitches()])
       .then(([singers, associations]) => {
         if (!isActive) return;
@@ -104,12 +112,18 @@ export default function SingerDetailScreen() {
                 onPress={() => router.push({ pathname: '/song/[id]', params: { id: item.songId } })}
                 style={({ pressed }) => [styles.songMain, pressed && styles.pressed]}
               >
-                <View style={[styles.songMark, { backgroundColor: coverColors[index % coverColors.length] }]}>
-                  <Music2 color={colors.forestDeep} size={19} strokeWidth={1.7} />
-                </View>
                 <View style={styles.songCopy}>
                   <Text numberOfLines={2} style={styles.songName}>{item.songName || 'Untitled bhajan'}</Text>
-                  <Text style={styles.songMeta}>Reference pitch  ·  {item.pitch}</Text>
+                  <Text style={styles.songMeta}>
+                    <Text style={styles.gentsLabel}>Gents: </Text>
+                    {formatReferencePitch(songsById[item.songId]?.refGents) || 'missing'}
+                    {'  •  '}
+                    <Text style={styles.ladiesLabel}>Ladies: </Text>
+                    {formatReferencePitch(songsById[item.songId]?.refLadies) || 'missing'}
+                    {'\n'}
+                    <Text style={{ color: singerNameColor(singer?.gender || item.singerGender) }}>{singer?.name || item.singerName || 'Singer'}: </Text>
+                    {item.pitch}
+                  </Text>
                 </View>
               </Pressable>
               <Pressable
@@ -171,9 +185,10 @@ const styles = StyleSheet.create({
   actionHint: { color: colors.forest, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
   selectedActionHint: { color: colors.white },
   pressed: { opacity: 0.72 },
-  songMark: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   songCopy: { flex: 1 },
   songName: { color: colors.ink, fontSize: 14, fontWeight: '600', lineHeight: 19 },
+  gentsLabel: { color: '#2563EB' },
+  ladiesLabel: { color: '#DB2777' },
   songMeta: { color: colors.muted, fontSize: 11, marginTop: 4 },
   separator: { height: 6 },
   emptyState: { alignItems: 'center', padding: 30 },

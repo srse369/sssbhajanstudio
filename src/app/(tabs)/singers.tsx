@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Redirect, router } from 'expo-router';
 import { Alert, ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Pencil, Plus, Search, Trash2, UsersRound } from 'lucide-react-native';
+import { Pencil, Search, Trash2, UsersRound } from 'lucide-react-native';
 import { AlphabetIndex, alphabetIndexStyles, compareNames, useAlphabetJump } from '../../components/AlphabetIndex';
 import { colors } from '../../lib/theme';
+import { formatCount } from '../../lib/count';
 import { singerNameColor } from '../../lib/singerColors';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -19,6 +20,7 @@ import {
   type SingerInput,
   updateSingerProfile,
 } from '../../lib/singers';
+import { AddFab } from '../../components/AddFab';
 import { SingerEditorModal } from '../../components/SingerEditorModal';
 
 export default function SingersScreen() {
@@ -151,11 +153,12 @@ export default function SingersScreen() {
 
   return (
     <View style={styles.screen}>
+      {canManageSingers ? <AddFab label="Add singer" onPress={openCreateSinger} /> : null}
       <View style={styles.listScreen}>
         <View>
           <View style={styles.header}>
             <Text style={styles.heading}>Singers</Text>
-            <Text style={styles.intro}>{singers.length} voices, with their songs and pitches.</Text>
+            <Text style={styles.intro}>{formatCount(visibleSingers.length, singers.length)} voices, with their songs and pitches.</Text>
           </View>
           <View style={styles.searchWrap}>
             <Search color={colors.muted} size={18} strokeWidth={1.8} />
@@ -168,18 +171,6 @@ export default function SingersScreen() {
               style={styles.searchInput}
               value={query}
             />
-          </View>
-          <View style={styles.sectionHeading}>
-            <Text style={styles.sectionTitle}>Singer directory</Text>
-            <View style={styles.sectionActions}>
-              <Text style={styles.sectionCount}>{visibleSingers.length} SINGERS</Text>
-              {canManageSingers ? (
-                <Pressable accessibilityRole="button" accessibilityLabel="Add singer" onPress={openCreateSinger} style={styles.addButton}>
-                  <Plus color={colors.white} size={16} />
-                  <Text style={styles.addLabel}>Add</Text>
-                </Pressable>
-              ) : null}
-            </View>
           </View>
         </View>
         <View style={alphabetIndexStyles.listArea}>
@@ -206,9 +197,6 @@ export default function SingersScreen() {
                   onPress={() => router.push({ pathname: '/singers/[id]', params: { id: item.id } })}
                   style={({ pressed }) => [styles.singerMain, pressed && styles.rowPressed]}
                 >
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarInitial}>{item.name.trim().charAt(0).toLocaleUpperCase()}</Text>
-                  </View>
                   <View style={styles.singerCopy}>
                     <Text numberOfLines={1} style={[styles.singerName, { color: singerNameColor(item.gender) }]}>{item.name}</Text>
                     <Text numberOfLines={2} style={styles.singerMeta}>
@@ -275,12 +263,6 @@ const styles = StyleSheet.create({
   intro: { color: '#C3D2C8', fontSize: 12, lineHeight: 16, marginTop: 3, textAlign: 'center' },
   searchWrap: { minHeight: 44, backgroundColor: colors.surface, borderColor: colors.line, borderWidth: 1, borderRadius: 7, marginHorizontal: 16, marginTop: -10, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center' },
   searchInput: { flex: 1, minHeight: 42, color: colors.ink, fontSize: 13, marginLeft: 8, paddingVertical: 0 },
-  sectionHeading: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: colors.ink, fontSize: 15, fontFamily: 'Georgia' },
-  sectionCount: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
-  sectionActions: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  addButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, borderRadius: 7, backgroundColor: colors.forest },
-  addLabel: { color: colors.white, fontSize: 11, fontWeight: '700' },
   listContent: { flexGrow: 1, backgroundColor: colors.paper, paddingHorizontal: 16, paddingBottom: 16 },
   singerRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center' },
   singerMain: { flex: 1, minHeight: 60, paddingLeft: 0, paddingRight: 6, flexDirection: 'row', alignItems: 'center' },
@@ -289,8 +271,6 @@ const styles = StyleSheet.create({
   actionHint: { color: colors.forest, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
   deleteHint: { color: colors.rose, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
   rowPressed: { opacity: 0.72 },
-  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.sage, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
-  avatarInitial: { color: colors.forest, fontFamily: 'Georgia', fontSize: 16 },
   singerCopy: { flex: 1, marginRight: 8 },
   singerName: { color: colors.ink, fontSize: 13, fontWeight: '600', marginBottom: 2 },
   singerMeta: { color: colors.muted, fontSize: 10 },

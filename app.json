@@ -33,6 +33,7 @@
     },
     "android": {
       "package": "com.sssc.sssbhajanstudio",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/sai-values-icon.png",

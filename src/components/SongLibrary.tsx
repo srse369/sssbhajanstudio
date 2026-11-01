@@ -12,15 +12,17 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
-import { ArrowRight, Check, Heart, Music2, Pencil, Plus, Search, Trash2, WifiOff } from 'lucide-react-native';
+import { ArrowRight, Check, Heart, Pencil, Search, Trash2, WifiOff } from 'lucide-react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useSongs } from '../contexts/SongsContext';
 import { useLiveSession } from '../contexts/LiveSessionContext';
 import { AlphabetIndex, alphabetIndexStyles, useAlphabetJump } from './AlphabetIndex';
+import { AddFab } from './AddFab';
+import { formatCount } from '../lib/count';
 import { formatReferencePitch } from '../lib/pitch';
-import { coverColors, colors } from '../lib/theme';
+import { colors } from '../lib/theme';
 import { keepProgressVisible } from '../lib/progress';
-import { createSong, deleteSong, updateSong, type Song, type SongInput } from '../lib/songs';
+import { createSong, deleteSong, fetchSong, updateSong, type Song, type SongInput } from '../lib/songs';
 import { SongEditorModal } from './SongEditorModal';
 
 interface SongLibraryProps {
@@ -122,9 +124,6 @@ const SongRow = memo(function SongRow({
         onPress={() => router.push({ pathname: '/song/[id]', params: { id: item.id } })}
         style={({ pressed }) => [styles.songMain, pressed && styles.pressed]}
       >
-        <View style={[styles.songMark, { backgroundColor: coverColors[index % coverColors.length] }]}>
-          <Music2 color={colors.forestDeep} size={21} strokeWidth={1.7} />
-        </View>
         <View style={styles.songCopy}>
           <Text numberOfLines={1} style={styles.songTitle}>{item.name}</Text>
           <Text numberOfLines={1} style={styles.songSubtitle}>{subtitle || 'Sai bhajan'}</Text>
@@ -249,9 +248,19 @@ export function SongLibrary({ savedOnly = false }: SongLibraryProps) {
     listRef, windowedItems: windowedSongs, availableLetters, scrollToLetter, loadEarlier, loadLater, showIndex,
   } = useAlphabetJump(visibleSongs, getSongName);
 
-  const openSongEditor = useCallback((song: Song | null) => {
-    setEditingSong(song);
-    setIsEditorVisible(true);
+  const openSongEditor = useCallback(async (song: Song | null) => {
+    if (!song) {
+      setEditingSong(null);
+      setIsEditorVisible(true);
+      return;
+    }
+    // The list endpoint omits lyrics, meaning and video link, so load the full record first.
+    try {
+      setEditingSong(await fetchSong(song.id));
+      setIsEditorVisible(true);
+    } catch (cause) {
+      Alert.alert('Unable to open song', cause instanceof Error ? cause.message : 'Please try again.');
+    }
   }, []);
 
   async function saveSong(input: SongInput) {
@@ -340,13 +349,14 @@ export function SongLibrary({ savedOnly = false }: SongLibraryProps) {
 
   return (
     <View style={styles.library}>
+      {canManageSongs && !savedOnly ? <AddFab label="Add bhajan" onPress={() => openSongEditor(null)} /> : null}
       <View>
         <View style={styles.masthead}>
           <Text style={styles.heading}>{savedOnly ? 'Favorite Bhajans' : 'Songs'}</Text>
           <Text style={styles.intro}>
             {savedOnly
-              ? `${savedSongs.length} favorite ${savedSongs.length === 1 ? 'bhajan' : 'bhajans'}.`
-              : `${songs.length ? `${songs.length} songs` : 'Songs and lyrics'} for your daily practice.`}
+              ? `${formatCount(visibleSongs.length, savedSongs.length)} favorite ${savedSongs.length === 1 ? 'bhajan' : 'bhajans'}.`
+              : `${songs.length ? `${formatCount(visibleSongs.length, songs.length)} songs` : 'Songs and lyrics'} for your daily practice.`}
           </Text>
       </View>
         <View style={styles.searchWrap}>
@@ -380,16 +390,6 @@ export function SongLibrary({ savedOnly = false }: SongLibraryProps) {
             );
           })}
         </ScrollView>
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionTitle}>{savedOnly ? 'Favorites' : 'The songbook'}</Text>
-          <Text style={styles.songCount}>{visibleSongs.length} SONGS</Text>
-          {canManageSongs && !savedOnly ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Add bhajan" onPress={() => openSongEditor(null)} style={styles.addButton}>
-              <Plus color={colors.white} size={15} />
-              <Text style={styles.addLabel}>Add</Text>
-            </Pressable>
-          ) : null}
-        </View>
       </View>
       <View style={styles.listArea}>
         <FlatList
@@ -446,13 +446,9 @@ const styles = StyleSheet.create({
   filterChipSelected: { backgroundColor: colors.saffronLight, borderColor: colors.saffronLight },
   filterLabel: { color: colors.muted, fontSize: 12, fontWeight: '600' },
   filterLabelSelected: { color: colors.forestDeep },
-  sectionHeading: { paddingHorizontal: 16, paddingBottom: 6, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  sectionTitle: { color: colors.ink, fontSize: 15, fontFamily: 'Georgia' },
-  songCount: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
   songRow: { flexDirection: 'row', alignItems: 'center', height: 64 },
   songMain: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 62, paddingLeft: 2, paddingRight: 6 },
   pressed: { opacity: 0.72 },
-  songMark: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
   songCopy: { flex: 1, marginRight: 6 },
   songTitle: { color: colors.ink, fontSize: 13, fontWeight: '600', marginBottom: 2 },
   pitchLine: { color: colors.ink, fontSize: 10, lineHeight: 13, marginTop: 1 },
@@ -466,8 +462,6 @@ const styles = StyleSheet.create({
   actionHint: { color: colors.muted, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
   selectedActionHint: { color: colors.white },
   deleteHint: { color: colors.rose, fontSize: 8, lineHeight: 10, fontWeight: '600', textAlign: 'center' },
-  addButton: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, borderRadius: 6, backgroundColor: colors.forest },
-  addLabel: { color: colors.white, fontSize: 10, fontWeight: '700' },
   rowGap: { height: 1, backgroundColor: colors.line },
   emptyState: { alignItems: 'center', paddingHorizontal: 30, paddingTop: 40, paddingBottom: 56 },
   emptyTitle: { color: colors.ink, fontFamily: 'Georgia', fontSize: 18, textAlign: 'center', marginTop: 14 },

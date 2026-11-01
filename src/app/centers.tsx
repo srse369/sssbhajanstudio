@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
-import { Alert, ActivityIndicator, FlatList, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ArrowLeft, Check, Pencil, Plus, Trash2 } from 'lucide-react-native';
+import { SearchBar } from '../components/SearchBar';
 import { useAuth } from '../contexts/AuthContext';
 import { createAccountCenter, deleteAccountCenter, fetchAccountCenters, fetchSingers, updateAccountCenter, type AccountCenter, type Singer } from '../lib/singers';
 import { colors } from '../lib/theme';
+import { formatCount } from '../lib/count';
 
 const COLOR_OPTIONS = ['#21483B', '#1E40AF', '#A64D43', '#C17A38', '#65518A', '#287D83'];
 
 export default function CentersScreen() {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const [query, setQuery] = useState('');
   const [centers, setCenters] = useState<AccountCenter[]>([]);
+  const visibleCenters = centers.filter((center) => center.name.toLowerCase().includes(query.trim().toLowerCase()));
   const [users, setUsers] = useState<Singer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -148,15 +152,16 @@ export default function CentersScreen() {
         </Pressable>
         <View style={styles.headerCopy}>
           <Text style={styles.heading}>Centers</Text>
-          <Text style={styles.intro}>{centers.length} centers · assign editors to manage each one</Text>
+          <Text style={styles.intro}>{formatCount(visibleCenters.length, centers.length)} centers · assign editors to manage each one</Text>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Add center" onPress={() => openForm()} style={styles.addButton}>
           <Plus color={colors.white} size={18} />
         </Pressable>
       </View>
+      <SearchBar label="Search centers" value={query} onChangeText={setQuery} />
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       <FlatList
-        data={centers}
+        data={visibleCenters}
         keyExtractor={(center) => String(center.id)}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -181,7 +186,9 @@ export default function CentersScreen() {
       <Modal animationType="slide" onRequestClose={() => setIsFormVisible(false)} presentationStyle="overFullScreen" transparent visible={isFormVisible}>
         <View style={styles.modalBackdrop}>
           <Pressable accessibilityRole="button" accessibilityLabel="Close center form" onPress={() => setIsFormVisible(false)} style={styles.modalScrim} />
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardAvoiding}>
           <View style={styles.modalSheet}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <Text style={styles.modalTitle}>{editingCenter ? 'Edit center' : 'Add center'}</Text>
             <Text style={styles.fieldLabel}>CENTER NAME</Text>
             <TextInput accessibilityLabel="Center name" onChangeText={setName} placeholder="Center name" placeholderTextColor={colors.muted} style={styles.input} value={name} />
@@ -211,7 +218,9 @@ export default function CentersScreen() {
               {isSaving ? <ActivityIndicator color={colors.white} size="small" /> : null}
               <Text style={styles.saveLabel}>{isSaving ? 'Saving…' : editingCenter ? 'Save changes' : 'Add center'}</Text>
             </Pressable>
+            </ScrollView>
           </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </View>
@@ -221,14 +230,14 @@ export default function CentersScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
-  header: { backgroundColor: colors.forest, paddingLeft: 12, paddingRight: 16, paddingTop: 2, paddingBottom: 15, flexDirection: 'row', alignItems: 'center' },
+  header: { backgroundColor: colors.forest, paddingLeft: 12, paddingRight: 16, paddingTop: 2, paddingBottom: 23, flexDirection: 'row', alignItems: 'center' },
   headerCopy: { flex: 1 },
-  backButton: { width: 36, height: 40, alignItems: 'center', justifyContent: 'center' },
+  backButton: { width: 38, height: 40, alignItems: 'center', justifyContent: 'center' },
   addButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 19, backgroundColor: '#426756' },
-  heading: { color: '#E6C08B', fontSize: 25, lineHeight: 30, fontWeight: '700' },
-  intro: { color: '#C3D2C8', fontSize: 12, lineHeight: 16, marginTop: 3 },
+  heading: { color: '#E6C08B', fontSize: 25, lineHeight: 30, fontWeight: '700', textAlign: 'center', marginTop: -8 },
+  intro: { color: '#C3D2C8', fontSize: 12, lineHeight: 16, marginTop: 3, textAlign: 'center' },
   error: { color: colors.rose, fontSize: 12, lineHeight: 18, marginHorizontal: 18, marginTop: 10 },
-  listContent: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 18 },
+  listContent: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 18 },
   separator: { height: 1, backgroundColor: colors.line },
   centerRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 2 },
   colorMark: { width: 7, height: 30, borderRadius: 4, marginRight: 4 },
@@ -238,6 +247,7 @@ const styles = StyleSheet.create({
   rowButton: { width: 32, height: 40, alignItems: 'center', justifyContent: 'center' },
   empty: { color: colors.muted, fontSize: 13, textAlign: 'center', padding: 28 },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16, 29, 23, 0.48)' },
+  keyboardAvoiding: { flex: 1, justifyContent: 'flex-end' },
   modalScrim: { ...StyleSheet.absoluteFill },
   modalSheet: { maxHeight: '88%', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 26, backgroundColor: colors.paper, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
   modalTitle: { color: colors.ink, fontFamily: 'Georgia', fontSize: 21, marginBottom: 8 },

@@ -3,7 +3,9 @@ import { Check, ChevronDown, Search, X } from 'lucide-react-native';
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { PITCH_OPTIONS, pitchOptionLabel } from '../lib/pitch';
 import type { Singer, SingerSongPitch, SingerUser } from '../lib/singers';
 import type { Song } from '../lib/songs';
 import { colors } from '../lib/theme';
@@ -29,21 +32,6 @@ interface PitchEditorModalProps {
 }
 
 type PickerMode = 'song' | 'singer' | 'pitch' | null;
-
-const BASE_PITCHES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const PITCH_OPTIONS = [
-  ...BASE_PITCHES.flatMap((value) => [value, `${value} major`, `${value} minor`]),
-  '1 Madhyam', '1.5 Madhyam', '2 Madhyam', '2.5 Madhyam', '3 Madhyam', '4 Madhyam',
-  '4.5 Madhyam', '5 Madhyam', '5.5 Madhyam', '6 Madhyam', '6.5 Madhyam', '7 Madhyam',
-];
-const PITCH_NUMBERS: Record<string, number> = { C: 1, 'C#': 1.5, D: 2, 'D#': 2.5, E: 3, F: 4, 'F#': 4.5, G: 5, 'G#': 5.5, A: 6, 'A#': 6.5, B: 7 };
-
-function pitchLabel(value: string) {
-  if (value.includes('Madhyam')) return value;
-  const suffix = value.endsWith(' major') ? 'M' : value.endsWith(' minor') ? 'm' : '';
-  const base = suffix ? value.replace(/ (major|minor)$/, '') : value;
-  return `${PITCH_NUMBERS[base]}${suffix} (${value.replace('#', '♯')})`;
-}
 
 export function PitchEditorModal({ visible, pitch, scope, user, songs, singers, existingPitches, onClose, onSubmit }: PitchEditorModalProps) {
   const [songId, setSongId] = useState(pitch?.songId || '');
@@ -100,6 +88,7 @@ export function PitchEditorModal({ visible, pitch, scope, user, songs, singers, 
     >
       <View style={styles.backdrop}>
         <Pressable accessibilityRole="button" accessibilityLabel="Close pitch editor" onPress={onClose} style={styles.scrim} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardAvoiding}>
         <View style={styles.sheet}>
           <View style={styles.header}>
             <View>
@@ -134,7 +123,7 @@ export function PitchEditorModal({ visible, pitch, scope, user, songs, singers, 
                 ItemSeparatorComponent={() => <View style={styles.separator} />}
                 ListEmptyComponent={<Text style={styles.emptyResults}>No matches.</Text>}
                 renderItem={({ item }) => {
-                  const label = typeof item === 'string' ? pitchLabel(item) : item.name;
+                  const label = typeof item === 'string' ? pitchOptionLabel(item) : item.name;
                   const selected = pickerMode === 'song'
                     ? typeof item !== 'string' && item.id === songId
                     : pickerMode === 'singer'
@@ -196,7 +185,7 @@ export function PitchEditorModal({ visible, pitch, scope, user, songs, singers, 
               {matchingExistingPitch && !isEditing ? (
                 <View style={styles.existingPitchNotice}>
                   <Text style={styles.existingPitchText}>
-                    This assignment already exists at {pitchLabel(matchingExistingPitch.pitch)}.
+                    This assignment already exists at {pitchOptionLabel(matchingExistingPitch.pitch)}.
                   </Text>
                   <Pressable
                     accessibilityRole="button"
@@ -216,8 +205,8 @@ export function PitchEditorModal({ visible, pitch, scope, user, songs, singers, 
               {updateExistingPitchId ? <Text style={styles.helperText}>Updating the existing assignment. Song and singer are locked.</Text> : null}
 
               <Text style={styles.fieldLabel}>PITCH</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel={`Select pitch${pitchValue ? `, ${pitchLabel(pitchValue)}` : ''}`} onPress={() => openPicker('pitch')} style={styles.fieldButton}>
-                <Text style={[styles.fieldValue, !pitchValue && styles.placeholder]}>{pitchValue ? pitchLabel(pitchValue) : 'Choose a pitch'}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Select pitch${pitchValue ? `, ${pitchOptionLabel(pitchValue)}` : ''}`} onPress={() => openPicker('pitch')} style={styles.fieldButton}>
+                <Text style={[styles.fieldValue, !pitchValue && styles.placeholder]}>{pitchValue ? pitchOptionLabel(pitchValue) : 'Choose a pitch'}</Text>
                 <ChevronDown color={colors.muted} size={17} />
               </Pressable>
 
@@ -229,6 +218,7 @@ export function PitchEditorModal({ visible, pitch, scope, user, songs, singers, 
             </ScrollView>
           )}
         </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -236,6 +226,7 @@ export function PitchEditorModal({ visible, pitch, scope, user, songs, singers, 
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16, 29, 23, 0.48)' },
+  keyboardAvoiding: { flex: 1, justifyContent: 'flex-end' },
   scrim: { ...StyleSheet.absoluteFill },
   sheet: { maxHeight: '88%', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 24, backgroundColor: colors.paper, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
   header: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },

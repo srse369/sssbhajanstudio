@@ -4,7 +4,9 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -155,7 +157,8 @@ function ProfileDrawer({ visible, onClose }: ProfileDrawerProps) {
                 <X color={colors.white} size={19} strokeWidth={1.8} />
               </Pressable>
             </View>
-            <ScrollView ref={scrollRef} style={styles.drawerScroll} contentContainerStyle={styles.drawerContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.drawerScroll}>
+            <ScrollView ref={scrollRef} contentContainerStyle={styles.drawerContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               {user ? (
                 <>
                   <View style={styles.identityCard}>
@@ -273,6 +276,7 @@ function ProfileDrawer({ visible, onClose }: ProfileDrawerProps) {
                 </>
               )}
             </ScrollView>
+            </KeyboardAvoidingView>
           </SafeAreaView>
         </Animated.View>
       </View>

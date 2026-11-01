@@ -33,6 +33,7 @@ interface LiveSessionValue {
   removeSong: (songId: string, singerId?: string) => Promise<void>;
   removeItem: (itemKey: string) => Promise<void>;
   moveSong: (itemKey: string, direction: -1 | 1) => Promise<void>;
+  moveSongTo: (itemKey: string, position: 'top' | 'bottom') => Promise<void>;
   replaceItems: (items: LiveSessionItem[]) => Promise<void>;
   clearSession: () => Promise<void>;
 }
@@ -129,6 +130,19 @@ export function LiveSessionProvider({ children }: PropsWithChildren) {
     return commitItems(reordered);
   }, [commitItems]);
 
+  const moveSongTo = useCallback((itemKey: string, position: 'top' | 'bottom') => {
+    const current = itemsRef.current;
+    const index = current.findIndex((item) => liveSessionItemKey(item) === itemKey);
+    if (index < 0 || (position === 'top' && index === 0) || (position === 'bottom' && index === current.length - 1)) {
+      return Promise.resolve();
+    }
+
+    const reordered = [...current];
+    const [item] = reordered.splice(index, 1);
+    reordered.splice(position === 'top' ? 0 : reordered.length, 0, item);
+    return commitItems(reordered);
+  }, [commitItems]);
+
   const clearSession = useCallback(() => {
     return commitItems([]);
   }, [commitItems]);
@@ -138,8 +152,8 @@ export function LiveSessionProvider({ children }: PropsWithChildren) {
   }, [commitItems]);
 
   const value = useMemo(
-    () => ({ items, isLoading, addSong, removeSong, removeItem, moveSong, replaceItems, clearSession }),
-    [items, isLoading, addSong, removeSong, removeItem, moveSong, replaceItems, clearSession],
+    () => ({ items, isLoading, addSong, removeSong, removeItem, moveSong, moveSongTo, replaceItems, clearSession }),
+    [items, isLoading, addSong, removeSong, removeItem, moveSong, moveSongTo, replaceItems, clearSession],
   );
 
   return (
