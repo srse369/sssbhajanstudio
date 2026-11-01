@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import * as Linking from 'expo-linking';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, Heart, Headphones, Pause, Play, Share2 } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Check, Heart, Headphones, Pause, Play, Share2 } from 'lucide-react-native';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,8 +14,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ProfileButton } from '../../components/ProfileDrawer';
+import { useLiveSession } from '../../contexts/LiveSessionContext';
 import { useFavoriteSongs } from '../../contexts/SongsContext';
+import { keepProgressVisible } from '../../lib/progress';
 import { fetchSong, type Song } from '../../lib/songs';
 import { formatReferencePitch } from '../../lib/pitch';
 import { colors } from '../../lib/theme';
@@ -26,12 +28,25 @@ function formatTime(seconds: number) {
   return `${minutes}:${remainingSeconds}`;
 }
 
+function shareSong(song: Song) {
+  const pitches = [
+    song.refGents ? `Gents: ${formatReferencePitch(song.refGents)}` : null,
+    song.refLadies ? `Ladies: ${formatReferencePitch(song.refLadies)}` : null,
+  ].filter(Boolean).join(' • ');
+  const link = Linking.createURL(`/song/${encodeURIComponent(song.id)}`, { scheme: 'sssbhajanstudio' });
+  const message = [song.name, pitches, `Open in SSS Bhajan Studio: ${link}`, song.externalSourceUrl].filter(Boolean).join('\n');
+  return Share.share({ message });
+}
+
 export default function SongDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { savedSongIds, toggleSavedSong } = useFavoriteSongs();
   const [song, setSong] = useState<Song | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [isFavoritePending, setIsFavoritePending] = useState(false);
+  const { items: liveItems, isLoading: isLiveLoading, addSong, removeSong } = useLiveSession();
+  const [isLivePending, setIsLivePending] = useState(false);
+  const isInLive = liveItems.some((item) => item.songId === id);
   const player = useAudioPlayer(null, { updateInterval: 500 });
   const playback = useAudioPlayerStatus(player);
   const [audioError, setAudioError] = useState<string | null>(null);
@@ -46,6 +61,18 @@ export default function SongDetailScreen() {
       setDetailError(cause instanceof Error ? cause.message : 'Unable to update favorite.');
     } finally {
       setIsFavoritePending(false);
+    }
+  }
+
+  async function toggleLive() {
+    if (!song) return;
+    setIsLivePending(true);
+    try {
+      await keepProgressVisible(isInLive ? removeSong(song.id) : addSong(song));
+    } catch (cause) {
+      setDetailError(cause instanceof Error ? cause.message : 'Unable to update Live queue.');
+    } finally {
+      setIsLivePending(false);
     }
   }
 
@@ -119,7 +146,7 @@ export default function SongDetailScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Share song"
-            onPress={() => void Share.share({ message: `${song.name}\n${song.externalSourceUrl || ''}` })}
+            onPress={() => void shareSong(song)}
             style={styles.iconButton}
           >
             <Share2 color={colors.ink} size={19} strokeWidth={1.8} />
@@ -136,7 +163,19 @@ export default function SongDetailScreen() {
               ? <ActivityIndicator color={colors.rose} size="small" />
               : <Heart color={isSaved ? colors.rose : colors.ink} fill={isSaved ? colors.rose : 'transparent'} size={20} strokeWidth={1.8} />}
           </Pressable>
-          <ProfileButton />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isInLive ? 'Remove from Live' : 'Add to Live'}
+            accessibilityState={{ selected: isInLive, disabled: isLivePending || isLiveLoading }}
+            disabled={isLivePending || isLiveLoading}
+            onPress={() => void toggleLive()}
+            style={[styles.liveButton, isInLive && styles.liveButtonSelected]}
+          >
+            {isLivePending
+              ? <ActivityIndicator color={isInLive ? colors.white : colors.forest} size="small" />
+              : isInLive ? <Check color={colors.white} size={17} strokeWidth={2.2} /> : <ArrowRight color={colors.forest} size={18} strokeWidth={1.9} />}
+            <Text style={[styles.liveLabel, isInLive && styles.liveLabelSelected]}>Live</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -236,6 +275,10 @@ const styles = StyleSheet.create({
   backText: { color: colors.forest, fontSize: 14, fontWeight: '600' },
   topBar: { height: 54, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  liveButton: { minWidth: 46, height: 40, marginLeft: 2, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  liveButtonSelected: { backgroundColor: colors.forest },
+  liveLabel: { color: colors.forest, fontSize: 9, fontWeight: '700' },
+  liveLabelSelected: { color: colors.white },
   topActions: { flexDirection: 'row', alignItems: 'center' },
   detailContent: { paddingHorizontal: 24, paddingBottom: 42 },
   songIntro: { alignItems: 'center', paddingTop: 16, paddingBottom: 27 },
